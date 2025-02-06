@@ -1,5 +1,12 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, font, filedialog, colorchooser
+from tkinter import (
+    ttk,
+    messagebox,
+    font,
+    filedialog,
+    colorchooser,
+    simpledialog  # 确保包含此项
+)
 import sqlite3
 from datetime import datetime
 from tkinterweb import HtmlFrame
