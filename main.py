@@ -125,6 +125,20 @@ class EnhancedEmailTemplateApp:
         ttk.Button(footer_frame, text="导出", command=self.export_template).pack(side=tk.LEFT)
         ttk.Button(footer_frame, text="导入", command=self.import_template).pack(side=tk.LEFT, padx=5)
 
+        # 添加模板列表树形视图（新增代码）
+        self.template_tree = ttk.Treeview(
+            left_panel, 
+            columns=("id", "name"), 
+            show="headings", 
+            selectmode="browse"
+        )
+        self.template_tree.pack(fill=tk.BOTH, expand=True)
+        self.template_tree.heading("name", text="模板名称")
+        self.template_tree.column("id", width=0, stretch=tk.NO)  # 隐藏ID列
+
+        # 模板列表事件绑定（新增代码）
+        self.template_tree.bind("<<TreeviewSelect>>", self.load_template_content)
+
     def init_toolbar(self, parent):
         """初始化富文本工具栏"""
         # 字体选择
@@ -274,15 +288,28 @@ class EnhancedEmailTemplateApp:
         pass
 
     def load_category_templates(self, event):
-        """加载选中分类的模板"""
+        """加载选中分类的模板（修复版）"""
         selected = self.category_tree.selection()
         if selected:
+            # 清空现有模板列表
+            for item in self.template_tree.get_children():
+                self.template_tree.delete(item)
+        
+            # 获取分类名称
             category = self.category_tree.item(selected)['text']
+        
+            # 查询数据库
             cursor = self.conn.cursor()
             cursor.execute("SELECT id, name FROM templates WHERE category=?", (category,))
-            self.template_list.delete(0, tk.END)
-            for row in cursor.fetchall():
-                self.template_list.insert(tk.END, row[1], row[0])
+        
+            # 填充模板列表
+            for template_id, name in cursor.fetchall():
+                self.template_tree.insert(
+                    "", 
+                    tk.END, 
+                    values=(template_id, name), 
+                    text=name
+                )
     
     def new_template(self):
         """新建模板的完整实现"""
@@ -361,6 +388,28 @@ class EnhancedEmailTemplateApp:
         """加载模板到列表"""
         # 实现模板加载逻辑
         pass
+
+    def load_template_content(self, event):
+        """加载选中模板的内容（修复版）"""
+        selection = self.template_tree.selection()
+        if selection:
+            # 获取模板ID
+            template_id = self.template_tree.item(selection[0])['values'][0]
+        
+            # 查询数据库
+            cursor = self.conn.cursor()
+            cursor.execute("SELECT name, category, content, html_content FROM templates WHERE id=?", (template_id,))
+            result = cursor.fetchone()
+        
+            if result:
+                # 更新界面控件
+                self.name_entry.delete(0, tk.END)
+                self.name_entry.insert(0, result[0])
+                self.category_combo.set(result[1])
+                self.text_editor.delete(1.0, tk.END)
+                self.text_editor.insert(tk.END, result[2])
+                self.html_editor.load_html(result[3] if result[3] else "")
+    
 
 
 if __name__ == "__main__":
