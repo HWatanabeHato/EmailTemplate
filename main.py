@@ -108,6 +108,7 @@ class EmailTemplateApp:
         for row in cursor.fetchall():
             self.template_list.insert(tk.END, row[1], row[0])
 
+<<<<<<< Updated upstream
     def load_template_content(self, event):
         selection = self.template_list.curselection()
         if selection:
@@ -122,6 +123,73 @@ class EmailTemplateApp:
                 self.category_entry.insert(0, result[1])
                 self.content_text.delete(1.0, tk.END)
                 self.content_text.insert(tk.END, result[2])
+=======
+    # 后续数据库操作和功能方法与之前类似，但需要增加对HTML内容的支持
+    # 此处省略部分数据库操作方法，保持代码长度合理
+
+    def handle_editor_tab_change(self, event):
+        """处理编辑器标签切换"""
+        current_tab = self.editor_notebook.index(self.editor_notebook.select())
+        self.html_mode = (current_tab == 1)
+        
+        if self.html_mode:
+            # 同步文本到HTML编辑器
+            html_content = self.convert_text_to_html()
+            self.html_editor.load_html(html_content)
+        else:
+            # 同步HTML到文本编辑器
+            text_content = self.convert_html_to_text()
+            self.text_editor.delete(1.0, tk.END)
+            self.text_editor.insert(tk.END, text_content)
+
+    def convert_text_to_html(self):
+        """将富文本内容转换为HTML"""
+        # 此处实现格式转换逻辑
+        return "<html><body>" + self.text_editor.get(1.0, tk.END) + "</body></html>"
+
+    def convert_html_to_text(self):
+        """将HTML内容转换为纯文本"""
+        return self.html_editor.get_content().strip()
+
+    def insert_image(self):
+        """插入图片到编辑器"""
+        filepath = filedialog.askopenfilename(filetypes=[
+            ("图片文件", "*.png *.jpg *.jpeg *.gif *.bmp")
+        ])
+        if filepath:
+            try:
+                # 将图片转为base64嵌入
+                with open(filepath, "rb") as f:
+                    img_data = base64.b64encode(f.read()).decode()
+                img_tag = f'<img src="data:image/png;base64,{img_data}">'
+                self.text_editor.insert(tk.END, "\n" + img_tag + "\n")
+            except Exception as e:
+                messagebox.showerror("错误", f"无法插入图片: {str(e)}")
+
+    # 分类管理功能
+    
+    def create_category(self):
+        """创建新分类（修复后的版本）"""
+        # 使用 tkinter.simpledialog 的正确调用方式
+        category = simpledialog.askstring(
+            "新建分类", 
+            "输入分类名称:",
+            parent=self.root  # 添加 parent 参数确保对话框正确显示
+        )
+    
+        if category:
+            try:
+                cursor = self.conn.cursor()
+                cursor.execute("INSERT OR IGNORE INTO categories (name) VALUES (?)", (category,))
+                self.conn.commit()
+                self.load_categories()
+                # 自动选中新建分类
+                self.category_combo.set(category)
+            except sqlite3.IntegrityError:
+                messagebox.showerror("错误", "该分类已存在")
+            except Exception as e:
+                messagebox.showerror("错误", f"创建失败: {str(e)}")
+>>>>>>> Stashed changes
 
     def new_template(self):
         self.name_entry.delete(0, tk.END)
