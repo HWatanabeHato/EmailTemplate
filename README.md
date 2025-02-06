@@ -1,0 +1,2 @@
+# EmailTemplate
+基于DeepSeek编译的一个邮件模板管理小程序
