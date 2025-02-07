@@ -20,15 +20,26 @@ class EnhancedEmailTemplateApp:
         self.root.title("高级邮件模板管理")
         self.conn = sqlite3.connect('templates.db')
         self.create_tables()
+
+        self.create_gui()          # 先创建控件
+        self.init_editor()         # 初始化编辑器
+        self.load_all_data()       # 后加载数据
+
         
-        # 初始化富文本编辑器
-        self.init_editor()
-        self.create_gui()
-        self.load_all_data()
-        
-        # 绑定快捷键
         self.root.bind("<Control-f>", lambda e: self.search_box.focus())
         self.root.bind("<Control-s>", lambda e: self.save_template())
+
+        self.current_template_id = None  # 添加当前模板ID跟踪
+
+        # 测试按钮
+        btn_frame = ttk.Frame(root)
+        btn_frame.pack(padx=20, pady=20)
+        
+        ttk.Button(btn_frame, text="打开文件", command=self.open_file).grid(row=0, column=0)
+        ttk.Button(btn_frame, text="选择颜色", command=self.choose_color).grid(row=0, column=1)
+        ttk.Button(btn_frame, text="输入文本", command=self.input_text).grid(row=0, column=2)
+
+
 
     def init_editor(self):
         """初始化富文本编辑系统"""
@@ -62,7 +73,7 @@ class EnhancedEmailTemplateApp:
         main_frame = ttk.Frame(self.root)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # 左侧导航面板
+        # 左侧导航面板 --------------------------------------------------
         left_panel = ttk.Frame(main_frame, width=250)
         left_panel.pack(side=tk.LEFT, fill=tk.Y)
 
@@ -72,16 +83,29 @@ class EnhancedEmailTemplateApp:
         self.search_box.pack(fill=tk.X, padx=5, pady=5)
         self.search_var.trace_add("write", self.perform_search)
 
-        # 分类树形视图
+        # 分类树形视图（关键修复：确保正确定义）
         self.category_tree = ttk.Treeview(left_panel, show="tree", selectmode="browse")
         self.category_tree.pack(fill=tk.BOTH, expand=True)
         self.category_tree.bind("<<TreeviewSelect>>", self.load_category_templates)
-        
+
         # 分类管理按钮
         cat_btn_frame = ttk.Frame(left_panel)
         cat_btn_frame.pack(fill=tk.X)
         ttk.Button(cat_btn_frame, text="新建分类", command=self.create_category).pack(side=tk.LEFT)
         ttk.Button(cat_btn_frame, text="删除分类", command=self.delete_category).pack(side=tk.LEFT)
+
+        # 模板列表树形视图（确保在分类树下方）
+        self.template_tree = ttk.Treeview(
+            left_panel, 
+            columns=("id", "name"), 
+            show="headings", 
+            selectmode="browse"
+        )
+        self.template_tree.pack(fill=tk.BOTH, expand=True)
+        self.template_tree.heading("name", text="模板名称")
+        self.template_tree.column("id", width=0, stretch=tk.NO)  # 隐藏ID列
+        self.template_tree.bind("<<TreeviewSelect>>", self.load_template_content)
+
 
         # 右侧主内容区
         right_panel = ttk.Frame(main_frame)
@@ -246,16 +270,29 @@ class EnhancedEmailTemplateApp:
 
     # 分类管理功能
     def create_category(self):
-        """创建新分类"""
-        category = simpledialog.askstring("新建分类", "输入分类名称:")
+        """创建新分类（修复版）"""
+        category = simpledialog.askstring(
+            "新建分类",
+            "输入分类名称:",
+            parent=self.root  # 添加parent参数确保对话框正确显示
+        )
+    
         if category:
             try:
                 cursor = self.conn.cursor()
-                cursor.execute("INSERT INTO categories (name) VALUES (?)", (category,))
+                cursor.execute("INSERT OR IGNORE INTO categories (name) VALUES (?)", (category,))
                 self.conn.commit()
+            
+                # 刷新分类数据（会自动更新下拉框）
                 self.load_categories()
+            
+                # 自动选中新建分类（新增代码）
+                self.category_combo.set(category)
+            
             except sqlite3.IntegrityError:
                 messagebox.showerror("错误", "该分类已存在")
+            except Exception as e:
+                messagebox.showerror("错误", f"创建失败: {str(e)}")
 
     def delete_category(self):
         """删除选中分类"""
@@ -366,23 +403,31 @@ class EnhancedEmailTemplateApp:
             messagebox.showerror("错误", f"保存失败: {str(e)}")
     
     def load_all_data(self):
-        """加载所有分类和模板数据"""
+        """加载所有分类和模板数据（增强版）"""
         self.load_categories()
         self.load_templates()
+        # 初始化下拉框选择状态
+        if self.category_combo['values']:
+            self.category_combo.current(0)
 
     def load_categories(self):
-        """加载分类到树形视图"""
+        """加载分类到树形视图（修复版）"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT name FROM categories")
         categories = [row[0] for row in cursor.fetchall()]
-        
+    
         # 清空现有树节点
-        for item in self.category_tree.get_children():
+        for item in self.category_tree.get_children():  # 确保有括号
             self.category_tree.delete(item)
-        
+    
         # 添加分类节点
         for cat in categories:
             self.category_tree.insert("", tk.END, text=cat)
+    
+        # 更新分类下拉框（新增代码）
+        self.category_combo['values'] = categories  # 关键修复
+        if categories:
+            self.category_combo.current(0)  # 自动选择第一个分类
 
     def load_templates(self, category=None):
         """加载模板到列表"""
