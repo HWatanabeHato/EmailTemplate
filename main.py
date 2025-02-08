@@ -30,8 +30,7 @@ class EnhancedEmailTemplateApp:
         self.root.bind("<Control-s>", lambda e: self.save_template())
 
         self.current_template_id = None  # 添加当前模板ID跟踪
-
-        # 测试按钮
+       # 测试按钮
         btn_frame = ttk.Frame(root)
         btn_frame.pack(padx=20, pady=20)
         
@@ -226,17 +225,20 @@ class EnhancedEmailTemplateApp:
     # 此处省略部分数据库操作方法，保持代码长度合理
 
     def handle_editor_tab_change(self, event):
-        """处理编辑器标签切换"""
+        """处理编辑器标签切换（修复版）"""
         current_tab = self.editor_notebook.index(self.editor_notebook.select())
         self.html_mode = (current_tab == 1)
-        
+    
+        browser = self.html_editor.get_browser()
+    
         if self.html_mode:
-            # 同步文本到HTML编辑器
+            # 富文本 -> HTML
             html_content = self.convert_text_to_html()
-            self.html_editor.load_html(html_content)
+            browser.load_html(html_content)
         else:
-            # 同步HTML到文本编辑器
-            text_content = self.convert_html_to_text()
+            # HTML -> 富文本
+            html_content = browser.get_html()
+            text_content = self.convert_html_to_text(html_content)
             self.text_editor.delete(1.0, tk.END)
             self.text_editor.insert(tk.END, text_content)
 
@@ -357,11 +359,14 @@ class EnhancedEmailTemplateApp:
         self.html_editor.load_html("")
     
     def save_template(self):
-        """保存模板的完整实现"""
+        """保存模板的完整实现（修复版）"""
         name = self.name_entry.get()
         category = self.category_combo.get()
         content = self.text_editor.get(1.0, tk.END)
-        html_content = self.html_editor.get_content() if self.html_mode else ""
+        
+        # 修复 HTML 内容获取方式
+        html_content = self.html_editor.get_browser().get_html() if self.html_mode else ""
+
 
         if not name or not category:
             messagebox.showwarning("警告", "名称和分类不能为空")
@@ -369,11 +374,9 @@ class EnhancedEmailTemplateApp:
 
         try:
             cursor = self.conn.cursor()
-            # 检查分类是否存在
             cursor.execute("INSERT OR IGNORE INTO categories (name) VALUES (?)", (category,))
             
             if self.current_template_id:
-                # 更新现有模板
                 cursor.execute("""
                     UPDATE templates SET 
                     name=?, 
@@ -384,7 +387,6 @@ class EnhancedEmailTemplateApp:
                     WHERE id=?
                 """, (name, category, content, html_content, datetime.now(), self.current_template_id))
             else:
-                # 新建模板
                 cursor.execute("""
                     INSERT INTO templates (
                         name, 
@@ -454,7 +456,21 @@ class EnhancedEmailTemplateApp:
                 self.text_editor.delete(1.0, tk.END)
                 self.text_editor.insert(tk.END, result[2])
                 self.html_editor.load_html(result[3] if result[3] else "")
-    
+
+    def open_file(self):
+        #实现打开文件功能
+        file_path = filedialog.askopenfilename(
+            title="选择文件",
+            filetypes=[("所有文件", "*.*")]
+        )
+        if file_path:
+            messagebox.showinfo("提示", f"已选择文件: {file_path}")
+
+    def input_text(self):
+        #实现文本输入功能
+        text = simpledialog.askstring("输入文本", "请输入内容:")
+        if text:
+            self.text_editor.insert(tk.END, text)       
 
 
 if __name__ == "__main__":
