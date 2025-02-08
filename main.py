@@ -33,10 +33,6 @@ class EnhancedEmailTemplateApp:
        # 测试按钮
         btn_frame = ttk.Frame(root)
         btn_frame.pack(padx=20, pady=20)
-        
-        ttk.Button(btn_frame, text="打开文件", command=self.open_file).grid(row=0, column=0)
-        ttk.Button(btn_frame, text="选择颜色", command=self.choose_color).grid(row=0, column=1)
-        ttk.Button(btn_frame, text="输入文本", command=self.input_text).grid(row=0, column=2)
 
 
 
